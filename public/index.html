@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>File Storage App</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="page-header">
+      <div>
+        <h1>File Storage Manager</h1>
+        <p>Organize local and Hugging Face bucket files with folder support</p>
+      </div>
+      <div class="badge-group">
+        <span class="badge">Local</span>
+        <span class="badge">HF Bucket</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="card card-grid">
+        <div class="card-header">
+          <h2>Upload</h2>
+          <small>Local and HF storage shared flow</small>
+        </div>
+        <div class="card-body">
+          <div class="upload-area" id="uploadArea">
+            <input type="file" id="fileInput" multiple hidden>
+            <input type="file" id="folderInput" webkitdirectory directory multiple hidden>
+            <p><strong>Drag folder/files here</strong><br>or click to browse</p>
+          </div>
+
+          <div class="target-controls">
+            <label><input type="radio" name="uploadTarget" value="local" checked> Local</label>
+            <label><input type="radio" name="uploadTarget" value="hf"> HF Bucket</label>
+          </div>
+
+          <div class="upload-actions">
+            <button id="uploadBtn" class="btn btn-primary">Upload Selected</button>
+            <button id="uploadFolderBtn" class="btn btn-secondary">Upload Folder</button>
+            <button id="loadHfBtn" class="btn btn-outline">Refresh HF</button>
+          </div>
+
+          <div id="uploadStatus" class="status"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <h2>Configuration</h2>
+          <small>Update HF bucket and token from the app</small>
+        </div>
+        <div class="card-body">
+          <div class="config-grid">
+            <label class="config-field">
+              <span>HF Bucket</span>
+              <input type="text" id="hfBucketInput" placeholder="e.g. username/repo" />
+            </label>
+            <label class="config-field">
+              <span>HF Token</span>
+              <input type="password" id="hfTokenInput" placeholder="Leave blank to keep current token" />
+            </label>
+          </div>
+          <div class="config-note" id="hfTokenStatus">Loading configuration...</div>
+          <div class="config-actions">
+            <button id="saveConfigBtn" class="btn btn-primary">Save Config</button>
+            <button id="clearTokenBtn" class="btn btn-outline">Clear Token</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <h2>File Manager</h2>
+          <small>View and manage path-based files</small>
+        </div>
+        <div class="card-body">
+          <div class="management-actions">
+            <div class="action-group">
+              <label>Sort: <select id="sortBy"><option value="name">Name</option><option value="size">Size</option><option value="date">Date</option></select></label>
+              <label>Order: <select id="sortOrder"><option value="asc">Asc</option><option value="desc">Desc</option></select></label>
+              <label><input id="selectAll" type="checkbox"> Select all</label>
+            </div>
+            <div class="action-group">
+              <button id="showLocalBtn" class="btn btn-link">Local</button>
+              <button id="showHfBtn" class="btn btn-link">HF</button>
+              <button id="createFolderBtn" class="btn btn-info">Create Folder</button>
+              <button id="moveSelectedBtn" class="btn btn-warning">Move Selected</button>
+              <button id="deleteSelectedBtn" class="btn btn-danger">Delete Selected</button>
+              <button id="clearSelectionBtn" class="btn btn-secondary">Clear</button>
+            </div>
+          </div>
+
+          <div id="hfStatus" class="status"></div>
+          <div id="filesList" class="files-list"><p>Loading files...</p></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
