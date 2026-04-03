@@ -49,13 +49,14 @@ npm start
    ```
 2. Deploy from the project root:
    ```bash
-   cd /workspaces/file-storage-app
+   cd /workspaces/ogacloudestore
    vercel --prod
    ```
 3. Configure environment variables in Vercel:
    - `HF_BUCKET`
    - `HF_TOKEN`
    - Optional: `UPLOADS_DIR=/tmp/uploads` for temporary local uploads on Vercel.
-4. The app uses Vercel serverless API routes under `/api/*`.
+4. The app uses the Node server in `server.js` and Vercel serverless API routes under `/api/*`.
+5. The frontend is served from `public/` and includes `index.html`, `style.css`, and `script.js`.
 
 > Note: local uploads and runtime config file storage on Vercel are ephemeral and stored in temporary function storage. Configuration saved through the app will work during the current deployment instance, but it is not guaranteed to persist across new cold starts or redeployments.
