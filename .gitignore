@@ -74,6 +74,12 @@ dist
 .cache/
 public
 
+# Allow tracked public app assets
+!public/
+!public/index.html
+!public/style.css
+!public/script.js
+
 # Storybook build outputs
 .out
 .storybook-out
