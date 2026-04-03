@@ -79,6 +79,7 @@ public
 !public/index.html
 !public/style.css
 !public/script.js
+!public/favicon.ico
 
 # Storybook build outputs
 .out
