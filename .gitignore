@@ -75,11 +75,10 @@ dist
 public
 
 # Allow tracked public app assets
-!public/
-!public/index.html
-!public/style.css
-!public/script.js
-!public/favicon.ico
+!index.html
+!style.css
+!script.js
+!favicon.ico
 
 # Storybook build outputs
 .out
@@ -113,3 +112,5 @@ Thumbs.db
 # Lock files (optional - uncomment if you want to ignore)
 # package-lock.json
 # yarn.lock
+.vercel
+.env*.local
