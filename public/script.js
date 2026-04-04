@@ -3,6 +3,7 @@ const state = {
   selectedFiles: new Set(),
   files: [],
   hasHfToken: false,
+  currentPath: '',
 };
 
 const elements = {
@@ -108,58 +109,100 @@ async function clearToken() {
 }
 
 function renderFiles() {
-  const sorted = [...state.files];
   const sortKey = elements.sortBy.value;
   const direction = elements.sortOrder.value === 'asc' ? 1 : -1;
 
-  sorted.sort((a, b) => {
+  // 1. Filter files to only show items inside the current folder
+  const visibleFiles = state.files.filter(file => {
+    const parts = file.path.split('/');
+    // If currentPath is empty, show top-level files (no slash or one part)
+    if (state.currentPath === '') {
+      return parts.length === 1 || (file.type === 'directory' && parts.length === 1);
+    }
+    // If inside a folder, show only items that start with that folder and are direct children
+    const parentPath = parts.slice(0, -1).join('/');
+    return parentPath === state.currentPath;
+  });
+
+  // 2. Sort the filtered list
+  visibleFiles.sort((a, b) => {
+    if (a.type === 'directory' && b.type !== 'directory') return -1;
+    if (a.type !== 'directory' && b.type === 'directory') return 1;
     if (sortKey === 'size') return (a.size - b.size) * direction;
-    if (sortKey === 'date') return (new Date(a.updatedAt || a.uploadedAt || 0) - new Date(b.updatedAt || b.uploadedAt || 0)) * direction;
     return a.path.localeCompare(b.path) * direction;
   });
 
-  if (sorted.length === 0) {
-    elements.filesList.innerHTML = '<p>No files found.</p>';
+  // 3. Clear and build the UI
+  elements.filesList.innerHTML = '';
+
+  // Add a "Go Back" button if we are inside a folder
+  if (state.currentPath !== '') {
+    const backBtn = document.createElement('div');
+    backBtn.className = 'file-item';
+    backBtn.innerHTML = `<button class="btn btn-secondary">⬅ Back to Parent</button>`;
+    backBtn.onclick = () => {
+      const parts = state.currentPath.split('/');
+      parts.pop();
+      state.currentPath = parts.join('/');
+      renderFiles();
+    };
+    elements.filesList.appendChild(backBtn);
+  }
+
+  if (visibleFiles.length === 0) {
+    elements.filesList.innerHTML += '<p style="padding:20px;">Folder is empty.</p>';
     return;
   }
 
-  elements.filesList.innerHTML = '';
-  sorted.forEach((file) => {
+  visibleFiles.forEach((file) => {
     const item = document.createElement('div');
     item.className = 'file-item';
 
+    const fileName = file.path.split('/').pop(); // Only show the filename, not the full path
+
     const label = document.createElement('label');
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.checked = state.selectedFiles.has(file.path);
-    checkbox.addEventListener('change', () => {
-      if (checkbox.checked) state.selectedFiles.add(file.path);
+    label.innerHTML = `
+      <input type="checkbox" ${state.selectedFiles.has(file.path) ? 'checked' : ''}>
+      <div>
+        <span class="file-name">${file.type === 'directory' ? '📁' : '📄'} ${fileName}</span>
+        <div class="file-meta">${file.type || 'file'} • ${file.size || 0} bytes</div>
+      </div>
+    `;
+
+    // Handle checkbox
+    label.querySelector('input').addEventListener('change', (e) => {
+      if (e.target.checked) state.selectedFiles.add(file.path);
       else state.selectedFiles.delete(file.path);
     });
 
-    const title = document.createElement('div');
-    title.innerHTML = `<span class="file-name">${file.path}</span><div class="file-meta">${file.type || 'file'} • ${file.size || 0} bytes</div>`;
-
-    label.appendChild(checkbox);
-    label.appendChild(title);
-
     const actions = document.createElement('div');
     actions.className = 'file-actions';
-    const download = document.createElement('button');
-    download.className = 'btn btn-outline';
-    download.textContent = 'Download';
-    download.addEventListener('click', () => downloadFile(file.path));
+
+    if (file.type === 'directory') {
+      const openBtn = document.createElement('button');
+      openBtn.className = 'btn btn-info';
+      openBtn.textContent = 'Open';
+      openBtn.onclick = () => {
+        state.currentPath = file.path;
+        renderFiles();
+      };
+      actions.appendChild(openBtn);
+    } else {
+      const download = document.createElement('button');
+      download.className = 'btn btn-outline';
+      download.textContent = 'Download';
+      download.onclick = () => downloadFile(file.path);
+      actions.appendChild(download);
+    }
 
     const remove = document.createElement('button');
     remove.className = 'btn btn-danger';
     remove.textContent = 'Delete';
-    remove.addEventListener('click', () => deleteFiles([file.path]));
+    remove.onclick = () => deleteFiles([file.path]);
 
-    actions.appendChild(download);
     actions.appendChild(remove);
     item.appendChild(label);
     item.appendChild(actions);
-
     elements.filesList.appendChild(item);
   });
 }
