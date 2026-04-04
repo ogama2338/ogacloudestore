@@ -86,7 +86,7 @@ app.post('/api/config', async (req, res) => {
   }
 });
 
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Create uploads directory if it doesn't exist
 if (!fs.existsSync(uploadsDir)) {
