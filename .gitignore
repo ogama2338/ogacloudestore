@@ -75,10 +75,11 @@ dist
 public
 
 # Allow tracked public app assets
-!index.html
-!style.css
-!script.js
-!favicon.ico
+!public/
+!public/index.html
+!public/style.css
+!public/script.js
+!public/favicon.ico
 
 # Storybook build outputs
 .out
