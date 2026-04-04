@@ -545,6 +545,18 @@ app.post('/api/hf/move', async (req, res) => {
   }
 });
 
+// Add this to server.js
+app.get('/api/hf/credentials', (req, res) => {
+  // Only send if the user is authenticated (if you have auth)
+  if (!runtimeConfig.hfToken || !runtimeConfig.hfBucket) {
+    return res.status(400).json({ error: 'HF Credentials not configured' });
+  }
+  res.json({
+    token: runtimeConfig.hfToken,
+    bucket: runtimeConfig.hfBucket
+  });
+});
+
 // Start server when run directly
 if (require.main === module) {
   app.listen(PORT, () => {
