@@ -62,14 +62,13 @@ async function loadConfig() {
     setStatus(elements.hfStatus, 'Configuration loaded.');
   } catch (error) {
     setStatus(elements.hfStatus, 'Unable to load configuration.');
-    console.error(error);
   }
 }
 
 function updateTokenStatus() {
   elements.hfTokenStatus.textContent = state.hasHfToken
-    ? 'HF token is configured. You can use Hugging Face operations.'
-    : 'No HF token configured yet. Set it here and save.';
+    ? 'HF token is configured.'
+    : 'No HF token configured yet.';
 }
 
 async function saveConfig() {
@@ -79,32 +78,24 @@ async function saveConfig() {
     clearToken: false,
   };
   try {
-    await request('/api/config', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    });
+    await request('/api/config', { method: 'POST', body: JSON.stringify(body) });
     state.hasHfToken = !!body.hfToken;
     updateTokenStatus();
-    setStatus(elements.hfStatus, 'Configuration saved successfully.');
+    setStatus(elements.hfStatus, 'Config saved.');
     elements.hfTokenInput.value = '';
   } catch (error) {
-    setStatus(elements.hfStatus, 'Unable to save configuration.');
-    console.error(error);
+    setStatus(elements.hfStatus, 'Save failed.');
   }
 }
 
 async function clearToken() {
   try {
-    await request('/api/config', {
-      method: 'POST',
-      body: JSON.stringify({ clearToken: true }),
-    });
+    await request('/api/config', { method: 'POST', body: JSON.stringify({ clearToken: true }) });
     state.hasHfToken = false;
     updateTokenStatus();
-    setStatus(elements.hfStatus, 'HF token cleared.');
+    setStatus(elements.hfStatus, 'Token cleared.');
   } catch (error) {
-    setStatus(elements.hfStatus, 'Unable to clear token.');
-    console.error(error);
+    setStatus(elements.hfStatus, 'Clear failed.');
   }
 }
 
@@ -112,19 +103,15 @@ function renderFiles() {
   const sortKey = elements.sortBy.value;
   const direction = elements.sortOrder.value === 'asc' ? 1 : -1;
 
-  // 1. Filter files to only show items inside the current folder
+  // 1. Filter for Current Folder
   const visibleFiles = state.files.filter(file => {
     const parts = file.path.split('/');
-    // If currentPath is empty, show top-level files (no slash or one part)
-    if (state.currentPath === '') {
-      return parts.length === 1 || (file.type === 'directory' && parts.length === 1);
-    }
-    // If inside a folder, show only items that start with that folder and are direct children
+    if (state.currentPath === '') return parts.length === 1;
     const parentPath = parts.slice(0, -1).join('/');
     return parentPath === state.currentPath;
   });
 
-  // 2. Sort the filtered list
+  // 2. Sort: Folders first, then by user choice
   visibleFiles.sort((a, b) => {
     if (a.type === 'directory' && b.type !== 'directory') return -1;
     if (a.type !== 'directory' && b.type === 'directory') return 1;
@@ -132,21 +119,20 @@ function renderFiles() {
     return a.path.localeCompare(b.path) * direction;
   });
 
-  // 3. Clear and build the UI
   elements.filesList.innerHTML = '';
 
-  // Add a "Go Back" button if we are inside a folder
+  // Add Back Button
   if (state.currentPath !== '') {
-    const backBtn = document.createElement('div');
-    backBtn.className = 'file-item';
-    backBtn.innerHTML = `<button class="btn btn-secondary">⬅ Back to Parent</button>`;
-    backBtn.onclick = () => {
+    const backItem = document.createElement('div');
+    backItem.className = 'file-item';
+    backItem.innerHTML = `<button class="btn btn-secondary">⬅ Back to Parent</button>`;
+    backItem.onclick = () => {
       const parts = state.currentPath.split('/');
       parts.pop();
       state.currentPath = parts.join('/');
       renderFiles();
     };
-    elements.filesList.appendChild(backBtn);
+    elements.filesList.appendChild(backItem);
   }
 
   if (visibleFiles.length === 0) {
@@ -157,19 +143,17 @@ function renderFiles() {
   visibleFiles.forEach((file) => {
     const item = document.createElement('div');
     item.className = 'file-item';
-
-    const fileName = file.path.split('/').pop(); // Only show the filename, not the full path
+    const fileName = file.path.split('/').pop();
 
     const label = document.createElement('label');
     label.innerHTML = `
       <input type="checkbox" ${state.selectedFiles.has(file.path) ? 'checked' : ''}>
       <div>
         <span class="file-name">${file.type === 'directory' ? '📁' : '📄'} ${fileName}</span>
-        <div class="file-meta">${file.type || 'file'} • ${file.size || 0} bytes</div>
+        <div class="file-meta">${file.size || 0} bytes • ${file.type}</div>
       </div>
     `;
 
-    // Handle checkbox
     label.querySelector('input').addEventListener('change', (e) => {
       if (e.target.checked) state.selectedFiles.add(file.path);
       else state.selectedFiles.delete(file.path);
@@ -178,29 +162,44 @@ function renderFiles() {
     const actions = document.createElement('div');
     actions.className = 'file-actions';
 
+    // OPEN (Folder) or DOWNLOAD (File)
     if (file.type === 'directory') {
-      const openBtn = document.createElement('button');
-      openBtn.className = 'btn btn-info';
-      openBtn.textContent = 'Open';
-      openBtn.onclick = () => {
-        state.currentPath = file.path;
-        renderFiles();
-      };
-      actions.appendChild(openBtn);
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-info';
+      btn.textContent = 'Open';
+      btn.onclick = () => { state.currentPath = file.path; renderFiles(); };
+      actions.appendChild(btn);
     } else {
-      const download = document.createElement('button');
-      download.className = 'btn btn-outline';
-      download.textContent = 'Download';
-      download.onclick = () => downloadFile(file.path);
-      actions.appendChild(download);
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-outline';
+      btn.textContent = 'Download';
+      btn.onclick = () => downloadFile(file.path);
+      actions.appendChild(btn);
     }
 
-    const remove = document.createElement('button');
-    remove.className = 'btn btn-danger';
-    remove.textContent = 'Delete';
-    remove.onclick = () => deleteFiles([file.path]);
+    // RENAME
+    const renBtn = document.createElement('button');
+    renBtn.className = 'btn btn-warning';
+    renBtn.textContent = 'Rename';
+    renBtn.onclick = async () => {
+      const newName = prompt('Enter new name:', fileName);
+      if (!newName || newName === fileName) return;
+      const newPath = state.currentPath ? `${state.currentPath}/${newName}` : newName;
+      try {
+        const url = state.view === 'hf' ? '/api/hf/rename' : '/api/rename';
+        await request(url, { method: 'POST', body: JSON.stringify({ oldPath: file.path, newPath }) });
+        loadFiles(state.view);
+      } catch (e) { alert('Rename failed'); }
+    };
+    actions.appendChild(renBtn);
 
-    actions.appendChild(remove);
+    // DELETE
+    const delBtn = document.createElement('button');
+    delBtn.className = 'btn btn-danger';
+    delBtn.textContent = 'Delete';
+    delBtn.onclick = () => { if(confirm(`Delete ${fileName}?`)) deleteFiles([file.path]); };
+    actions.appendChild(delBtn);
+
     item.appendChild(label);
     item.appendChild(actions);
     elements.filesList.appendChild(item);
@@ -209,17 +208,17 @@ function renderFiles() {
 
 async function loadFiles(view = 'local') {
   state.view = view;
+  state.currentPath = ''; // Start at root when switching
   state.selectedFiles.clear();
-  setStatus(elements.hfStatus, `Loading ${view} files...`);
+  elements.selectAll.checked = false;
+  setStatus(elements.hfStatus, `Loading ${view}...`);
   try {
     const endpoint = view === 'local' ? '/api/files' : '/api/hf/files';
     state.files = await request(endpoint);
     renderFiles();
-    setStatus(elements.hfStatus, `${view === 'local' ? 'Local' : 'HF'} files loaded.`);
+    setStatus(elements.hfStatus, `${view} loaded.`);
   } catch (error) {
-    setStatus(elements.hfStatus, `Unable to load ${view} files.`);
-    elements.filesList.innerHTML = '<p>Error loading files.</p>';
-    console.error(error);
+    setStatus(elements.hfStatus, `Error loading ${view}.`);
   }
 }
 
@@ -227,18 +226,14 @@ async function uploadFiles(files, paths = []) {
   const form = new FormData();
   files.forEach((file) => form.append('files', file));
   paths.forEach((path) => form.append('paths', path));
-
   const target = getUploadTarget();
   const url = target === 'hf' ? '/api/hf/upload-multiple' : '/api/upload-multiple';
   try {
     const res = await fetch(url, { method: 'POST', body: form });
-    if (!res.ok) throw new Error(await res.text());
-    setStatus(elements.uploadStatus, 'Upload completed successfully.');
-    await loadFiles(state.view);
-  } catch (error) {
-    setStatus(elements.uploadStatus, 'Upload failed.');
-    console.error(error);
-  }
+    if (!res.ok) throw new Error();
+    setStatus(elements.uploadStatus, 'Upload success.');
+    loadFiles(state.view);
+  } catch (error) { setStatus(elements.uploadStatus, 'Upload failed.'); }
 }
 
 async function uploadSingle(file) {
@@ -248,27 +243,18 @@ async function uploadSingle(file) {
   const url = target === 'hf' ? '/api/hf/upload' : '/api/upload';
   try {
     const res = await fetch(url, { method: 'POST', body: form });
-    if (!res.ok) throw new Error(await res.text());
-    setStatus(elements.uploadStatus, 'Upload completed successfully.');
-    await loadFiles(state.view);
-  } catch (error) {
-    setStatus(elements.uploadStatus, 'Upload failed.');
-    console.error(error);
-  }
+    if (!res.ok) throw new Error();
+    setStatus(elements.uploadStatus, 'Upload success.');
+    loadFiles(state.view);
+  } catch (error) { setStatus(elements.uploadStatus, 'Upload failed.'); }
 }
 
 async function deleteFiles(paths) {
   try {
-    const target = state.view === 'hf' ? 'hf' : 'local';
-    const url = target === 'hf' ? '/api/hf/delete-multiple' : '/api/delete-multiple';
-    const method = 'POST';
-    await request(url, { method, body: JSON.stringify({ filenames: paths }) });
-    setStatus(elements.hfStatus, 'Delete successful.');
-    await loadFiles(state.view);
-  } catch (error) {
-    setStatus(elements.hfStatus, 'Delete failed.');
-    console.error(error);
-  }
+    const url = state.view === 'hf' ? '/api/hf/delete-multiple' : '/api/delete-multiple';
+    await request(url, { method: 'POST', body: JSON.stringify({ filenames: paths }) });
+    loadFiles(state.view);
+  } catch (error) { alert('Delete failed'); }
 }
 
 async function downloadFile(path) {
@@ -279,26 +265,19 @@ async function downloadFile(path) {
 
 function handleFileSelection() {
   const files = Array.from(elements.fileInput.files || []);
-  if (files.length === 0) {
-    setStatus(elements.uploadStatus, 'No file selected.');
-    return;
-  }
-  uploadSingle(files[0]);
+  if (files.length > 0) uploadSingle(files[0]);
 }
 
 function handleFolderSelection() {
   const files = Array.from(elements.folderInput.files || []);
-  if (files.length === 0) {
-    setStatus(elements.uploadStatus, 'No files selected.');
-    return;
+  if (files.length > 0) {
+    const paths = files.map((file) => file.webkitRelativePath || file.name);
+    uploadFiles(files, paths);
   }
-  const paths = files.map((file) => file.webkitRelativePath || file.name);
-  uploadFiles(files, paths);
 }
 
 function bindEvents() {
   elements.uploadArea.addEventListener('click', () => elements.fileInput.click());
-
   elements.fileInput.addEventListener('change', handleFileSelection);
   elements.folderInput.addEventListener('change', handleFolderSelection);
   elements.uploadBtn.addEventListener('click', () => elements.fileInput.click());
@@ -308,48 +287,32 @@ function bindEvents() {
   elements.clearTokenBtn.addEventListener('click', clearToken);
   elements.showLocalBtn.addEventListener('click', () => loadFiles('local'));
   elements.showHfBtn.addEventListener('click', () => loadFiles('hf'));
+  
   elements.createFolderBtn.addEventListener('click', async () => {
-    const folderPath = prompt('Enter folder path to create');
-    if (!folderPath) return;
+    const name = prompt('Folder name:');
+    if (!name) return;
+    const folderPath = state.currentPath ? `${state.currentPath}/${name}` : name;
     try {
       const url = state.view === 'hf' ? '/api/hf/create-folder' : '/api/create-folder';
       await request(url, { method: 'POST', body: JSON.stringify({ folderPath }) });
-      setStatus(elements.hfStatus, 'Folder created successfully.');
-      await loadFiles(state.view);
-    } catch (error) {
-      setStatus(elements.hfStatus, 'Unable to create folder.');
-      console.error(error);
-    }
+      loadFiles(state.view);
+    } catch (e) { alert('Failed to create folder'); }
   });
 
-  elements.deleteSelectedBtn.addEventListener('click', async () => {
-    if (state.selectedFiles.size === 0) {
-      setStatus(elements.hfStatus, 'No files selected to delete.');
-      return;
-    }
-    if (!confirm('Delete selected files?')) return;
-    await deleteFiles(Array.from(state.selectedFiles));
+  elements.deleteSelectedBtn.addEventListener('click', () => {
+    if (state.selectedFiles.size === 0) return;
+    if (confirm('Delete selected?')) deleteFiles(Array.from(state.selectedFiles));
   });
 
   elements.moveSelectedBtn.addEventListener('click', async () => {
-    if (state.selectedFiles.size === 0) {
-      setStatus(elements.hfStatus, 'No files selected to move.');
-      return;
-    }
-    const destination = prompt('Enter destination folder path:');
+    if (state.selectedFiles.size === 0) return;
+    const destination = prompt('Move to folder path:');
     if (!destination) return;
     try {
       const url = state.view === 'hf' ? '/api/hf/move' : '/api/move';
-      await request(url, {
-        method: 'POST',
-        body: JSON.stringify({ files: Array.from(state.selectedFiles), destination }),
-      });
-      setStatus(elements.hfStatus, 'Files moved successfully.');
-      await loadFiles(state.view);
-    } catch (error) {
-      setStatus(elements.hfStatus, 'Unable to move files.');
-      console.error(error);
-    }
+      await request(url, { method: 'POST', body: JSON.stringify({ files: Array.from(state.selectedFiles), destination }) });
+      loadFiles(state.view);
+    } catch (e) { alert('Move failed'); }
   });
 
   elements.clearSelectionBtn.addEventListener('click', () => {
@@ -358,11 +321,8 @@ function bindEvents() {
   });
 
   elements.selectAll.addEventListener('change', () => {
-    if (elements.selectAll.checked) {
-      state.files.forEach((file) => state.selectedFiles.add(file.path));
-    } else {
-      state.selectedFiles.clear();
-    }
+    if (elements.selectAll.checked) state.files.forEach(f => state.selectedFiles.add(f.path));
+    else state.selectedFiles.clear();
     renderFiles();
   });
 
