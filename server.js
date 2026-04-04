@@ -43,7 +43,7 @@ app.use(express.json());
 
 // Serve index.html with config
 app.get('/', (req, res) => {
-  const indexPath = path.join(__dirname, 'public', 'index.html');
+  const indexPath = path.join(__dirname, 'index.html');
   fs.readFile(indexPath, 'utf8', (err, data) => {
     if (err) {
       res.status(500).send('Error loading page');
@@ -86,7 +86,7 @@ app.post('/api/config', async (req, res) => {
   }
 });
 
-app.use(express.static('public'));
+app.use(express.static('.'));
 
 // Create uploads directory if it doesn't exist
 if (!fs.existsSync(uploadsDir)) {
