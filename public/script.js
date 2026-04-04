@@ -237,16 +237,45 @@ async function uploadFiles(files, paths = []) {
 }
 
 async function uploadSingle(file) {
-  const form = new FormData();
-  form.append('file', file);
   const target = getUploadTarget();
-  const url = target === 'hf' ? '/api/hf/upload' : '/api/upload';
-  try {
-    const res = await fetch(url, { method: 'POST', body: form });
-    if (!res.ok) throw new Error();
-    setStatus(elements.uploadStatus, 'Upload success.');
-    loadFiles(state.view);
-  } catch (error) { setStatus(elements.uploadStatus, 'Upload failed.'); }
+  setStatus(elements.uploadStatus, 'Starting upload...');
+
+  if (target === 'hf') {
+    // DIRECT BROWSER TO HUGGING FACE UPLOAD (Bypasses Vercel 4.5MB limit)
+    try {
+      const { token, bucket } = await request('/api/hf/credentials');
+      const fileName = file.name;
+      const uploadUrl = `https://huggingface.co/api/buckets/${bucket}/upload/main/${fileName}`;
+
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: file // Sending the raw file blob directly
+      });
+
+      if (!response.ok) throw new Error('HF Direct Upload Failed');
+
+      setStatus(elements.uploadStatus, 'Upload to HF success (Direct)!');
+      loadFiles('hf');
+    } catch (error) {
+      console.error(error);
+      setStatus(elements.uploadStatus, 'HF Direct Upload Failed. Check console.');
+    }
+  } else {
+    // Standard Local Upload (Still limited to 4.5MB on Vercel)
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: form });
+      if (!res.ok) throw new Error();
+      setStatus(elements.uploadStatus, 'Local Upload success.');
+      loadFiles('local');
+    } catch (error) {
+      setStatus(elements.uploadStatus, 'Local Upload failed (Max 4.5MB on Vercel).');
+    }
+  }
 }
 
 async function deleteFiles(paths) {
