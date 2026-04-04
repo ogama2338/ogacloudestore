@@ -241,43 +241,50 @@ async function uploadSingle(file) {
   setStatus(elements.uploadStatus, 'Starting upload...');
 
   if (target === 'hf') {
-    // DIRECT BROWSER TO HUGGING FACE UPLOAD (Bypasses Vercel 4.5MB limit)
+    // DIRECT BROWSER UPLOAD (Handles 100MB+ via LFS)
     try {
+      // 1. Get your keys from your server
       const { token, bucket } = await request('/api/hf/credentials');
-      const fileName = file.name;
-      const uploadUrl = `https://huggingface.co/api/buckets/${bucket}/upload/main/${fileName}`;
+      
+      setStatus(elements.uploadStatus, `Uploading ${file.name} (Direct to HF)...`);
 
-      const response = await fetch(uploadUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        body: file // Sending the raw file blob directly
+      // 2. Use the HF Hub library (global variable 'huggingfaceHub')
+      // Note: We use the 'buckets/' prefix because your backend uses it
+      await huggingfaceHub.uploadFiles({
+        repo: `buckets/${bucket}`, 
+        accessToken: token,
+        files: [
+          {
+            path: file.name,
+            content: file,
+          },
+        ],
       });
 
-      if (!response.ok) throw new Error('HF Direct Upload Failed');
-
-      setStatus(elements.uploadStatus, 'Upload to HF success (Direct)!');
+      setStatus(elements.uploadStatus, 'Upload success (Direct LFS)!');
       loadFiles('hf');
     } catch (error) {
-      console.error(error);
-      setStatus(elements.uploadStatus, 'HF Direct Upload Failed. Check console.');
+      console.error("HF Upload Error:", error);
+      setStatus(elements.uploadStatus, 'HF Upload Failed. Check console for details.');
     }
   } else {
-    // Standard Local Upload (Still limited to 4.5MB on Vercel)
+    // LOCAL UPLOAD (Still limited to 4.5MB by Vercel)
+    if (file.size > 4.5 * 1024 * 1024) {
+        alert("Local uploads on Vercel are limited to 4.5MB. Use HF Bucket for large files.");
+        return;
+    }
     const form = new FormData();
     form.append('file', file);
     try {
       const res = await fetch('/api/upload', { method: 'POST', body: form });
       if (!res.ok) throw new Error();
-      setStatus(elements.uploadStatus, 'Local Upload success.');
+      setStatus(elements.uploadStatus, 'Local upload success.');
       loadFiles('local');
     } catch (error) {
-      setStatus(elements.uploadStatus, 'Local Upload failed (Max 4.5MB on Vercel).');
+      setStatus(elements.uploadStatus, 'Local upload failed.');
     }
   }
 }
-
 async function deleteFiles(paths) {
   try {
     const url = state.view === 'hf' ? '/api/hf/delete-multiple' : '/api/delete-multiple';
